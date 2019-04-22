@@ -1,6 +1,6 @@
 # rural-internet
 
-Code for visualizing maximum advertised upload speeds by census tract for New Hampshire and Vermont, weighting upload speeds by population.
+Code for visualizing maximum advertised upload speeds by census tract for New Hampshire and Vermont, weighting upload speeds by population. The visualization can be seen [here](http://dev.carto.ruralinnovation.us/user/zoekoch/builder/7dd9e4ef-fe63-49f2-ac68-22f870f52563/embed).
 
 The script map_maker.R adds VT and NH layers to the main geopackage and generates the histograms in the [summary slide](https://github.com/ZoeKoch/rural-internet/blob/master/data/images/summary-slide.pdf). It uses the function add.state.layer from  map_maker_functions.R. This function takes a shape file of the census tract shapes, converts it into a geopackage state.gpkg, uploads it into R using SQLite, appends the population data and internet speed data, and adds the state.gpkg as a layer named after the state's abbreviation in main.gpkg. The weighted max upload speed variable is just the tract's maximum upload speed divided by the tract population. 
 
