@@ -1,4 +1,4 @@
-# Driver for adding layers to the main geopackage.
+# Driver for adding layers to the main geopackage and generating data visualizations.
 
 library(ggplot2)
 

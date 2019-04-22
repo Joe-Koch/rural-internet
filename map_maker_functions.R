@@ -41,7 +41,6 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   }
   
   # UPLOAD TRACT SHAPES
-  
   # Convert the government-provided tract shapefile into a geopackage state.gpkg . 
   state <- shapefile(Sys.glob(file.path(state_data_path, "tl_2017_*_tract/tl_2017_*_tract.shp")))
   state_gpkg <- file.path(state_data_path, "state.gpkg")
@@ -68,7 +67,7 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   dbWriteTable(db$con, 'Population', state_population_df, overwrite=TRUE)
   dbGetQuery(db$con,'pragma table_info("Population")' )
   dbGetQuery(db$con,'select * from Population limit 3' )
-  # Create a tract-level table
+  # Create a tract-level table (the data are originally block-level)
   dbGetQuery(db$con,'create table TractPop as 
              SELECT stateabbr, tractCode, sum(pop2017)  as pop2017 
              FROM Population 
@@ -97,10 +96,9 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   # CREATE THE MAIN TABLE
   # Create a state table that's just the variables of interest. These will appear as widget options in CARTO.
   
-  # If state already exists, we'll need to get rid of it before creating a new one.
+  # If the state table already exists, we'll need to get rid of it before creating a new one.
   dbGetQuery(db$con, 'drop table if exists state')
   # Important note: we must specify the data type for the variables, otherwise the datatype may be unspecified and CARTO won't load it.
-  # dbGetQuery(db$con,'create table state(geom BLOB, TractCode TEXT, StateAbbr TEXT, Pop2017 INT, MaxUploadSpd NUMERIC, WTDMaxUploadSpd INT)' )
   dbGetQuery(db$con,'create table state(geom BLOB, TractCode TEXT, StateAbbr TEXT, Pop2017 INT, MaxUploadSpd INT, WTDMaxUploadSpd REAL)' )
   dbGetQuery(db$con,'INSERT INTO state(geom, TractCode, StateAbbr, Pop2017, MaxUploadSpd, WTDMaxUploadSpd)
              SELECT Shapes.geom, Shapes.GEOID as TractCode, TractSpeed.StateAbbr, TractPop.pop2017 as Pop2017,
@@ -131,10 +129,11 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   ogrListLayers(state_gpkg)
   state_layer <- readOGR(state_gpkg)
   writeOGR(state_layer, dsn=main_geopackage, layer=state_abbreviation, driver="GPKG", overwrite_layer ="TRUE" )
+  # We see the state layer listed.
   ogrListLayers(main_geopackage)
   ogrListLayers(main_geopackage)[1]
   
-  # Return the tract-level variables of interest.
+  # Return the tract-level variables of interest that were in the state table.
   return(state_df)
   
 }
