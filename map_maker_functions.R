@@ -10,10 +10,14 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   # 
   # Args:
   #   state_abbreviation: The state abbreviation , e.g. "VT"
-  #   state_data_path: The path to the folder that holds the state's data files. Must contain a tl_2017_50_tract shapefile 
-  #   folder with the state's tract-level geometries, and a csv file containing the FCC internet speed data, e.g.
-  #   "VT-data-Dec2017.csv"
+  #   state_data_path: The path to the folder that holds the state's data files. Must contain a tl_2017_**_tract shapefile 
+  #   folder with the state's tract-level geometries 
+  #   (from https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.2017.html), and a csv file
+  #   containing the FCC internet speed data, e.g."VT-data-Dec2017.csv" 
+  #   (from https://www.fcc.gov/general/broadband-deployment-data-fcc-form-477)
   #   main_geopackage: The path to the geopackage that you want to append the state's layer onto.
+  # Returns:
+  #   A dataframe of the variables that were added to the state's layer.
   
   library(dplyr) 
   library(RSQLite) 
@@ -95,8 +99,9 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   
   # If state already exists, we'll need to get rid of it before creating a new one.
   dbGetQuery(db$con, 'drop table if exists state')
-  # Important note: we must specify the data type for the INT's, otherwise the datatype may be unspecified and CARTO won't load it.
-  dbGetQuery(db$con,'create table state(geom BLOB, TractCode TEXT, StateAbbr TEXT, Pop2017 INT, MaxUploadSpd INT, WTDMaxUploadSpd INT)' )
+  # Important note: we must specify the data type for the variables, otherwise the datatype may be unspecified and CARTO won't load it.
+  # dbGetQuery(db$con,'create table state(geom BLOB, TractCode TEXT, StateAbbr TEXT, Pop2017 INT, MaxUploadSpd NUMERIC, WTDMaxUploadSpd INT)' )
+  dbGetQuery(db$con,'create table state(geom BLOB, TractCode TEXT, StateAbbr TEXT, Pop2017 INT, MaxUploadSpd INT, WTDMaxUploadSpd REAL)' )
   dbGetQuery(db$con,'INSERT INTO state(geom, TractCode, StateAbbr, Pop2017, MaxUploadSpd, WTDMaxUploadSpd)
              SELECT Shapes.geom, Shapes.GEOID as TractCode, TractSpeed.StateAbbr, TractPop.pop2017 as Pop2017,
              TractSpeed.MaxAdUp as MaxUploadSpd, TractSpeed.MaxAdUp / TractPop.pop2017 as WtdMaxUploadSpd
@@ -108,6 +113,9 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   # There were no tract codes in the shapes file that didn't have some population data or maximum upload speed.
   dbGetQuery(db$con, 'SELECT count(*) FROM state WHERE Pop2017 IS NULL')
   dbGetQuery(db$con, 'SELECT count(*) FROM state WHERE MaxUploadSpd IS NULL')
+  
+  # Save the main table to a dataframe
+  state_df <- dbGetQuery(db$con, 'SELECT * from state')
   
   # Get rid of the tables we don't need/want in the final geopackage.
   dbGetQuery(db$con, 'drop table if exists Shapes')
@@ -125,5 +133,8 @@ add.state.layer <- function(state_abbreviation, state_data_path, main_geopackage
   writeOGR(state_layer, dsn=main_geopackage, layer=state_abbreviation, driver="GPKG", overwrite_layer ="TRUE" )
   ogrListLayers(main_geopackage)
   ogrListLayers(main_geopackage)[1]
+  
+  # Return the tract-level variables of interest.
+  return(state_df)
   
 }
